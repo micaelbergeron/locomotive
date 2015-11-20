@@ -1,0 +1,4 @@
+[package]
+name = "locomotive"
+version = "0.1.0"
+authors = ["micael.bergeron <micael.bergeron@solutionstlm.com>"]
