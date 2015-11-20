@@ -1,5 +1,5 @@
-# Locomotive
-## Spread your games using Steam
+# Locomotive :steam_locomotive:
+## Spread your Steam games locally
 
 Locomotive is a network P2P game sharing tool.
 The idea is simple: using the large LAN bandwidth to install and update your Steam games.
