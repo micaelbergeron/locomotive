@@ -2,3 +2,9 @@
 name = "locomotive"
 version = "0.1.0"
 authors = ["micael.bergeron <micael.bergeron@solutionstlm.com>"]
+
+[dependencies]
+crust = "0.5.1"
+docopt = "0.6"
+rsync = "0.1.2" 
+peg = { git = "https://github.com/kevinmehall/rust-peg.git" }

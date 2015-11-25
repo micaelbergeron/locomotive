@@ -1,0 +1,60 @@
+use acf::*;
+
+peg! utils(r#"
+#[pub]
+int32 -> i32
+  = [0-9]* { from_str::<i32>(match_str) }
+"#);
+
+peg! acf(r#"
+#[pub]
+
+number -> i64
+  = '"' v:[0-9]+ '"' { from_str::<i64>(v).unwrap() }
+
+identifier -> String
+  = '"' v:^[a-z][a-z0-9]* '"' { v.to_string() }
+
+value -> Expr
+  = bundle / identifier / number
+  
+__ -> String
+  = [ \r\n\t]+
+"#);
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn main() {
+        let sample = "
+"AppState"
+{
+      "appid"		"107100"
+        "Universe"		"1"
+        "name"		"Bastion"
+        "StateFlags"		"4"
+        "installdir"		"Bastion"
+        "LastUpdated"		"1448139526"
+        "UpdateResult"		"0"
+        "SizeOnDisk"		"1269269650"
+        "buildid"		"322538"
+        "LastOwner"		"76561198006959558"
+        "BytesToDownload"		"0"
+        "BytesDownloaded"		"0"
+        "AutoUpdateBehavior"		"0"
+        "AllowOtherDownloadsWhileRunning"		"0"
+        "UserConfig"
+        {
+                "Language"		"english"
+        }
+        "MountedDepots"
+        {
+                "107106"		"5124896834728316169"
+        }
+}";
+
+    }
+}
