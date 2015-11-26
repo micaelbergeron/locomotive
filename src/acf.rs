@@ -1,30 +1,13 @@
 use std::collections::HashMap;
 
-struct AppState {
-    appid: i32,
-    universe: i32,
-    name: String,
-    state_flags: i32, // should become an Enum
-    installdir: String,
-    last_updated: i64,
-    update_result: i32,
-    size_on_disk: i64,
-    buildid: i32,
-    last_owner: i64,
-    bytes_to_download: i64,
-    bytes_downloaded: i64,
-    auto_update_behavior: i32,
-    allow_other_download_while_running: bool,
-    user_config: HashMap<String, String>,
-    mounted_depots: HashMap<i32, i64>,
-}
-
+#[derive(PartialEq, Debug)]
 pub enum ValueExpression {
     Number(i64),
     Text(String),
     Bundle(HashMap<String, Box<ValueExpression>>),
 }
 
+#[derive(Debug)]
 pub struct State {
     id: String,
     bundle: HashMap<String, Box<ValueExpression>>,
@@ -43,47 +26,55 @@ use std::borrow::Cow;
 
 #[pub]
 appstate -> State
-  = __ name:identifier __ b:bundle __ {
+  = _* name:identifier _+ b:bundle _* {
       State { id: name.to_string(), bundle: b }
   }
 
 #[pub]
 bundle -> HashMap<String, Box<ValueExpression>>
-  = "{" __ entries:entry+ __ "}" {
+  = _* "{" _* entries:entry ++ (_+) _* "}" {
       let mut bundle: HashMap<String, Box<ValueExpression>> = HashMap::new();
       for (k,v) in entries {
-          bundle.insert(k, Box::new(v));
+          println!("entry in bundle: {:?}", (k));
+          bundle.insert(k.to_string(), Box::new(v));
       };
       bundle
   }
 
 #[pub]
-entry -> (String, ValueExpression) 
-  = i:identifier __ v:value { (i.to_string(), v) }
+entry -> (&'input str, ValueExpression) 
+  = i:identifier _* v:value { (i, v) }
+
+digits -> i64
+  = [0-9]+ { match_str.parse().unwrap() }
 
 number -> i64
-  = [0-9]+ { match_str.parse().unwrap() }
-  / '"' quoted:number '"' { quoted }
+  = '"' quoted:digits '"' { quoted }
+
+letters -> &'input str
+  = [a-zA-Z0-9]* { match_str }
 
 identifier -> &'input str
-  = [a-zA-Z0-9]* { match_str }
-  / '"' quoted:identifier '"' { quoted }
+  = '"' quoted:letters '"' { quoted }
 
+#[pub]
 value -> ValueExpression
   = n:number { ValueExpression::Number(n) }
   / t:identifier { ValueExpression::Text(t.to_string()) }
   / b:bundle { ValueExpression::Bundle(b) }
-  
-__ = [ \r\n\t]*
+
+endl = [\r\n]
+blank = [ \t]
+_ = blank / endl
 "#);
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::parser::*;
     
     #[test]
-    fn main() {
-        use super::parser::*;
+    fn complete_acf() {
         let sample = r#"
 "AppState"
 {
@@ -111,10 +102,45 @@ mod tests {
         }
 }"#;
 
-        // let r = appstate(sample);
-        //let bundle_result = bundle("{ \"key\" \"value\" }");
-        //assert!(bundle_result.is_ok());
-        assert!(entry("\"key\" \"value\"").is_ok());
+        let s = appstate(sample);
+        println!("the parsed appstate is: {:?}", s);
+        assert!(s.is_ok());
+    }
+
+    #[test]
+    fn acf_bundle() {
+        let simple = r#"{ "key1" "val1" "key2" "val2" }"#;
+        assert!(bundle(simple).is_ok());
+        
+        let sample = r#"
+        {
+            "key1"    "value1"
+            "key2"    "10"
+            "key3"
+            {
+                "key31"  "value"
+                "key32"  "10"
+            }
+        }"#;
+        let map = bundle(sample);
+        println!("the parsed bundle: {:?}", map);
+
+        assert!(map.is_ok());
+    }
+
+    #[test]
+    fn acf_entry() {
+        assert_eq!(entry("\"key\" \"value\"").ok().unwrap(), ("key", ValueExpression::Text("value".to_string())));
+    }
+
+    #[test]
+    fn acf_value_expression() {
+        let text = value("\"value\"");
+        let number = value("\"10\"");
+        // todo: check for bundle
+
+        assert_eq!(text.ok().unwrap(), ValueExpression::Text("value".to_string()));
+        assert_eq!(number.ok().unwrap(), ValueExpression::Number(10));
     }
 
     #[test]
