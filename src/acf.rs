@@ -13,16 +13,9 @@ pub struct State {
     bundle: HashMap<String, Box<ValueExpression>>,
 }
 
-peg! simple(r#"
-#[pub]
-echo -> String 
-  = .* { match_str.to_string() }
-"#);
-
 peg! parser(r#"
 use super::{ValueExpression, State};
 use std::collections::HashMap;
-use std::borrow::Cow;
 
 #[pub]
 appstate -> State
@@ -35,7 +28,6 @@ bundle -> HashMap<String, Box<ValueExpression>>
   = _* "{" _* entries:entry ++ (_+) _* "}" {
       let mut bundle: HashMap<String, Box<ValueExpression>> = HashMap::new();
       for (k,v) in entries {
-          println!("entry in bundle: {:?}", (k));
           bundle.insert(k.to_string(), Box::new(v));
       };
       bundle
@@ -141,10 +133,5 @@ mod tests {
 
         assert_eq!(text.ok().unwrap(), ValueExpression::Text("value".to_string()));
         assert_eq!(number.ok().unwrap(), ValueExpression::Number(10));
-    }
-
-    #[test]
-    fn simple_grammar() {
-        use super::simple::echo;
     }
 }

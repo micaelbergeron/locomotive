@@ -3,6 +3,7 @@
 
 pub mod steamapps;
 pub mod acf;
+mod server;
 
 #[cfg(test)]
 mod tests {
