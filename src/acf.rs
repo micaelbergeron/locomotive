@@ -1,24 +1,38 @@
+use std::path::PathBuf;
 use std::collections::HashMap;
 
 #[derive(PartialEq, Debug)]
 pub enum ValueExpression {
     Number(i64),
     Text(String),
+    Path(PathBuf),
     Bundle(HashMap<String, Box<ValueExpression>>),
 }
 
 #[derive(Debug)]
 pub struct State {
     id: String,
-    bundle: HashMap<String, Box<ValueExpression>>,
+    pub bundle: HashMap<String, Box<ValueExpression>>,
 }
+
+/*
+ * I need to get my head around this...
+impl IntoIterator for State {
+    type Item = (String, Box<ValueExpression>);
+    type IntoIter = HashMap<String, Box<ValueExpression>>::Iter;
+    fn into_iter(self) -> Self::IntoIter {
+        self.bundle.into_iter()
+    }
+}
+ */
 
 peg! parser(r#"
 use super::{ValueExpression, State};
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 #[pub]
-appstate -> State
+vdf -> State
   = _* name:identifier _+ b:bundle _* {
       State { id: name.to_string(), bundle: b }
   }
@@ -38,7 +52,7 @@ entry -> (&'input str, ValueExpression)
   = i:identifier _* v:value { (i, v) }
 
 digits -> i64
-  = [0-9]+ { match_str.parse().unwrap() }
+  = "-"? [0-9]+ { match_str.parse().unwrap() }
 
 number -> i64
   = '"' quoted:digits '"' { quoted }
@@ -49,16 +63,27 @@ letters -> &'input str
 identifier -> &'input str
   = '"' quoted:letters '"' { quoted }
 
+path_chars -> &'input Path
+  = [a-zA-Z0-9\.\/\-_\+\~]* { Path::new(match_str) }
+
+path -> &'input Path
+  = '"' quoted:path_chars '"' { quoted }
+
 #[pub]
 value -> ValueExpression
   = n:number { ValueExpression::Number(n) }
   / t:identifier { ValueExpression::Text(t.to_string()) }
+  / p:path { ValueExpression::Path(p.to_owned()) }
   / b:bundle { ValueExpression::Bundle(b) }
 
 endl = [\r\n]
 blank = [ \t]
 _ = blank / endl
 "#);
+
+pub fn parse(raw_vdf: &str) -> Result<State, parser::ParseError> {
+    parser::vdf(raw_vdf)
+}
 
 #[cfg(test)]
 mod tests {
@@ -94,7 +119,7 @@ mod tests {
         }
 }"#;
 
-        let s = appstate(sample);
+        let s = vdf(sample);
         println!("the parsed appstate is: {:?}", s);
         assert!(s.is_ok());
     }

@@ -24,6 +24,7 @@ fn discover() {
 }
 
 #[test]
+#[ignore]
 fn test_broadcast_listener() {
     discover();
 }

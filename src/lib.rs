@@ -10,6 +10,6 @@ mod tests {
     #[test]
     fn has_default_steam_lib() {
         use std::path::Path;
-        assert_eq!(super::steamapps::find_libraries(), [Path::new("~/.steam/steam/steamapps/")]);
+        assert_eq!(super::steamapps::find_libraries().ok().unwrap(), [Path::new("~/.steam/steam/steamapps/")]);
     }
 }
