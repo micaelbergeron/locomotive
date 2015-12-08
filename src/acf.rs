@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::collections::HashMap;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Display)]
 pub enum ValueExpression {
     Number(i64),
     Text(String),
@@ -10,14 +10,14 @@ pub enum ValueExpression {
 }
 
 #[derive(Debug)]
-pub struct State {
+pub struct Manifest {
     id: String,
     pub bundle: HashMap<String, Box<ValueExpression>>,
 }
 
 /*
  * I need to get my head around this...
-impl IntoIterator for State {
+impl IntoIterator for Manifest {
     type Item = (String, Box<ValueExpression>);
     type IntoIter = HashMap<String, Box<ValueExpression>>::Iter;
     fn into_iter(self) -> Self::IntoIter {
@@ -27,14 +27,14 @@ impl IntoIterator for State {
  */
 
 peg! parser(r#"
-use super::{ValueExpression, State};
+use super::{ValueExpression, Manifest};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 #[pub]
-vdf -> State
+vdf -> Manifest
   = _* name:identifier _+ b:bundle _* {
-      State { id: name.to_string(), bundle: b }
+      Manifest { id: name.to_string(), bundle: b }
   }
 
 #[pub]
@@ -58,7 +58,7 @@ number -> i64
   = '"' quoted:digits '"' { quoted }
 
 letters -> &'input str
-  = [a-zA-Z0-9]* { match_str }
+  = [a-zA-Z0-9\:\- ]* { match_str }
 
 identifier -> &'input str
   = '"' quoted:letters '"' { quoted }
@@ -81,7 +81,7 @@ blank = [ \t]
 _ = blank / endl
 "#);
 
-pub fn parse(raw_vdf: &str) -> Result<State, parser::ParseError> {
+pub fn parse(raw_vdf: &str) -> Result<Manifest, parser::ParseError> {
     parser::vdf(raw_vdf)
 }
 

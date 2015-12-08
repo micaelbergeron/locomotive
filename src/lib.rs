@@ -1,15 +1,7 @@
 #![feature(plugin)]
+#![feature(custom_derive)]
 #![plugin(peg_syntax_ext)]
 
 pub mod steamapps;
 pub mod acf;
 mod server;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn has_default_steam_lib() {
-        use std::path::Path;
-        assert_eq!(super::steamapps::find_libraries().ok().unwrap(), [Path::new("~/.steam/steam/steamapps/")]);
-    }
-}

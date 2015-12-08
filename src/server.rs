@@ -1,5 +1,5 @@
 use std::thread;
-use std::net::{SocketAddrV4,UdpSocket};
+use std::net::{UdpSocket};
 
 fn discover() {
     // send a UTP broadcast
@@ -20,7 +20,7 @@ fn discover() {
     });
 
     println!("Waiting for a broadcast to be heard.");
-    t.join();
+    assert!(t.join().is_ok());
 }
 
 #[test]
