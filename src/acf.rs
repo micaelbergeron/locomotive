@@ -1,3 +1,4 @@
+use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use std::collections::HashMap;
 
@@ -6,13 +7,97 @@ pub enum ValueExpression {
     Number(i64),
     Text(String),
     Path(PathBuf),
-    Bundle(HashMap<String, Box<ValueExpression>>),
+    Bundle(Bundle),
 }
+
+#[derive(PartialEq, Debug)]
+pub struct Bundle(HashMap<String, Box<ValueExpression>>);
+impl Deref for Bundle {
+    type Target = HashMap<String, Box<ValueExpression>>;
+    fn deref(&self) -> &HashMap<String, Box<ValueExpression>>{
+        &self.0
+    }
+}
+impl DerefMut for Bundle {
+    fn deref_mut(&mut self) -> &mut HashMap<String, Box<ValueExpression>> {
+        &mut self.0
+    }
+}
+
+trait Extract<T> {
+    fn extract(&self, key: &str) -> Option<&T>;
+}
+
+impl Extract<String> for Bundle {
+    fn extract(&self, key: &str) -> Option<&String> {
+        if let Some(text) = self.get(key) {
+            match **text {
+                ValueExpression::Text(ref value) => Some(value),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+}
+
+impl Extract<i64> for Bundle {
+    fn extract(&self, key: &str) -> Option<&i64> {
+        if let Some(text) = self.get(key) {
+            match **text {
+                ValueExpression::Number(ref value) => Some(value),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+}
+
+impl Extract<PathBuf> for Bundle {
+    fn extract(&self, key: &str) -> Option<&PathBuf> {
+        if let Some(text) = self.get(key) {
+            match **text {
+                ValueExpression::Path(ref value) => Some(value),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+}
+
+impl Extract<Bundle> for Bundle {
+    fn extract(&self, key: &str) -> Option<&Bundle> {
+        if let Some(text) = self.get(key) {
+            match **text {
+                ValueExpression::Bundle(ref value) => Some(value),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+}
+
 
 #[derive(Debug)]
 pub struct Manifest {
     id: String,
-    pub bundle: HashMap<String, Box<ValueExpression>>,
+    pub bundle: Bundle
+}
+
+impl Deref for Manifest {
+    type Target = Bundle;
+
+    fn deref(&self) -> &Bundle {
+        &self.bundle
+    }
+}
+impl DerefMut for Manifest {
+    fn deref_mut(&mut self) -> &mut Bundle {
+        &mut self.bundle
+    }
 }
 
 /*
@@ -27,7 +112,7 @@ impl IntoIterator for Manifest {
  */
 
 peg! parser(r#"
-use super::{ValueExpression, Manifest};
+use super::{ValueExpression, Manifest, Bundle};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -38,13 +123,13 @@ vdf -> Manifest
   }
 
 #[pub]
-bundle -> HashMap<String, Box<ValueExpression>>
+bundle -> Bundle
   = _* "{" _* entries:entry ++ (_+) _* "}" {
       let mut bundle: HashMap<String, Box<ValueExpression>> = HashMap::new();
       for (k,v) in entries {
           bundle.insert(k.to_string(), Box::new(v));
       };
-      bundle
+      Bundle(bundle)
   }
 
 #[pub]
@@ -138,12 +223,30 @@ mod tests {
                 "key31"  "value"
                 "key32"  "10"
             }
+            "key4"    "/home/micael"
         }"#;
         let map = bundle(sample);
         println!("the parsed bundle: {:?}", map);
 
-        assert!(map.is_ok());
+        assert!(map.is_ok());        
     }
+
+    fn build_sample_manifest() -> Option<Manifest> {
+        let sample = r#"
+        "simple"
+        {
+            "key1"    "value1"
+            "key2"    "10"
+            "key3"
+            {
+                "key31"  "value"
+                "key32"  "10"
+            }
+            "key4"    "/home/micael"
+        }"#;
+        vdf(sample).ok()
+    }
+
 
     #[test]
     fn acf_entry() {
@@ -158,5 +261,25 @@ mod tests {
 
         assert_eq!(text.ok().unwrap(), ValueExpression::Text("value".to_string()));
         assert_eq!(number.ok().unwrap(), ValueExpression::Number(10));
+    }
+
+    #[test]
+    fn manifest_extract() {
+        use acf::Extract;
+
+        let mut manifest = build_sample_manifest().unwrap();
+        assert_eq!(<Bundle as Extract<String>>::extract(&manifest, "key1").unwrap().to_owned(), "value1");
+        // assert_eq!(<Bundle as Extract<String>>::extract(&manifest, "key2").unwrap().to_owned(), "value1");
+        assert_eq!(<Bundle as Extract<i64>>::extract(&manifest, "key2").unwrap().to_owned(), 10);
+        {
+            let mut key2 = manifest.get_mut("key2").unwrap();
+            **key2 = ValueExpression::Number(20);
+        }
+        {
+            let mut sub_bundle: &Bundle = manifest.extract("key3").unwrap();
+            println!("{:?}", sub_bundle);
+        }
+        
+        panic!();
     }
 }
